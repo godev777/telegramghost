@@ -46,6 +46,12 @@ jobs:
           submodules: recursive
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
 
+      - name: Sync and update submodules
+        run: |
+          cd %TBUILD%\%REPO_NAME%
+          git submodule sync --recursive
+          git submodule update --init --recursive --force
+
       - name: Setup environment variables
         shell: bash
         run: |
