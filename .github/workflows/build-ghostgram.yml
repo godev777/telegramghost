@@ -1,0 +1,141 @@
+name: Build Ghostgram Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+      - main
+      - master
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - 'changelog.txt'
+      - 'LEGAL'
+      - 'LICENSE'
+
+jobs:
+  build-windows:
+    name: Build Ghostgram (x64)
+    runs-on: windows-latest
+
+    env:
+      TDESKTOP_API_ID: 2040
+      TDESKTOP_API_HASH: b18441a1ff607e10a989891a5462e627
+      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+
+    defaults:
+      run:
+        shell: cmd
+
+    steps:
+      - name: Prepare directories
+        run: |
+          mkdir %userprofile%\TBuild\Libraries
+          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
+
+      - name: Get repository name
+        shell: bash
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+
+      - name: Setup environment variables
+        shell: bash
+        run: |
+          DOCPATH=$TBUILD/$REPO_NAME/docs/building-win.md
+          SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
+          echo "SDK=$SDK" >> $GITHUB_ENV
+
+          echo "$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
+          echo "$SDK" >> CACHE_KEY.txt
+          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
+
+          git config --global user.email "ghostgram@gh0stgram.org"
+          git config --global user.name "Ghostgram Builder"
+
+      - name: Setup MSVC Command Prompt
+        uses: Eden-CI/msvc-dev-cmd@master
+        with:
+          arch: x64
+          sdk: ${{ env.SDK }}
+          toolset: '14.44'
+
+      - name: Configure NuGet
+        run: |
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
+          nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
+
+      - name: Cache ThirdParty
+        id: cache-third-party
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.OS }}-third-party-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-third-party-
+
+      - name: Cache Libraries
+        id: cache-libs
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-x64-libs-v2-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-x64-libs-v2-
+
+      - name: Cache Qt
+        id: cache-qt
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-x64-qt-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-x64-qt-
+
+      - name: Prepare build libraries
+        run: |
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress
+
+      - name: Build Ghostgram Desktop
+        run: |
+          cd %TBUILD%\%REPO_NAME%\Telegram
+          call configure.bat x64 -D TDESKTOP_API_ID=%TDESKTOP_API_ID% -D TDESKTOP_API_HASH=%TDESKTOP_API_HASH% -D CMAKE_CONFIGURATION_TYPES=Debug -D CMAKE_COMPILE_WARNING_AS_ERROR=OFF
+          cmake --build ..\out --config Debug --target Telegram --parallel
+
+      - name: Package Portable & Installer
+        run: |
+          cd %TBUILD%\%REPO_NAME%
+          mkdir release_artifacts
+
+          echo Creating Portable Zip...
+          7z a release_artifacts\Ghostgram-Portable-x64.zip .\out\Debug\Ghostgram.exe
+
+          echo Creating Windows Setup Installer...
+          "C:\Program Files (x86)\Inno Setup 6\iscc.exe" /DMyBuildTarget="win64" /DMyAppVersion="7.2.9" /DMyAppVersionFull="7.2.9" /DReleasePath="out\Debug" /DSourcePath="Telegram\build\" Telegram\build\setup.iss
+
+          if exist out\Debug\ghostgramsetup-x64.7.2.9.exe (
+            move out\Debug\ghostgramsetup-x64.7.2.9.exe release_artifacts\
+          )
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: Ghostgram-v7.2.9-Windows-x64
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}\release_artifacts\*
+          retention-days: 14
