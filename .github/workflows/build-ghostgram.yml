@@ -36,6 +36,21 @@ jobs:
           echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
           echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
 
+      - name: Expand Virtual Memory (32GB Pagefile)
+        shell: pwsh
+        run: |
+          Write-Host "Allocating 32GB Pagefile on Drive D: to prevent memory starvation..."
+          try {
+            $pagefile = Get-CimInstance Win32_PageFileSetting -ErrorAction SilentlyContinue
+            if ($pagefile) {
+              $pagefile | Remove-CimInstance -ErrorAction SilentlyContinue
+            }
+            New-CimInstance -ClassName Win32_PageFileSetting -Property @{Name = "D:\pagefile.sys"; InitialSize = 32768; MaximumSize = 32768} -ErrorAction SilentlyContinue
+            Write-Host "32GB Pagefile configured successfully!"
+          } catch {
+            Write-Host "Notice: Pagefile setup skipped: $_"
+          }
+
       - name: Get repository name
         shell: bash
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
@@ -160,6 +175,11 @@ jobs:
           path: ${{ env.TBUILD }}\ThirdParty
           key: ${{ runner.OS }}-third-party-${{ env.CACHE_KEY }}
 
+      - name: Free up disk space
+        shell: bash
+        run: |
+          find "$LibrariesPath" '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' ')' -type f ')' -o -empty ')' -delete
+
       - name: Install Inno Setup
         shell: pwsh
         run: |
@@ -168,8 +188,8 @@ jobs:
       - name: Build Ghostgram Desktop
         run: |
           cd %TBUILD%\%REPO_NAME%\Telegram
-          call configure.bat x64 -D TDESKTOP_API_ID=%TDESKTOP_API_ID% -D TDESKTOP_API_HASH=%TDESKTOP_API_HASH% -D CMAKE_CONFIGURATION_TYPES=Debug -D CMAKE_COMPILE_WARNING_AS_ERROR=OFF -D CMAKE_CXX_FLAGS="/FS"
-          cmake --build ..\out --config Debug --target Telegram --parallel 4
+          call configure.bat x64 -D TDESKTOP_API_ID=%TDESKTOP_API_ID% -D TDESKTOP_API_HASH=%TDESKTOP_API_HASH% -D CMAKE_CONFIGURATION_TYPES=Debug -D CMAKE_COMPILE_WARNING_AS_ERROR=OFF -D CMAKE_MSVC_DEBUG_INFORMATION_FORMAT= -D CMAKE_CXX_FLAGS="/FS"
+          cmake --build ..\out --config Debug --target Telegram --parallel 2
 
       - name: Package Portable & Installer
         run: |
