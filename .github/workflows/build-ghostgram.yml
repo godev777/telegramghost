@@ -52,6 +52,25 @@ jobs:
           git submodule sync --recursive
           git submodule update --init --recursive --force
 
+      - name: Patch cmake helpers for MSVC /FS
+        shell: pwsh
+        run: |
+          cd ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+          $optFile = "cmake/options_win.cmake"
+          if (Test-Path $optFile) {
+            $content = Get-Content $optFile -Raw
+            $content = $content -replace '/MP     # Enable multi process build.', "/MP     # Enable multi process build.`r`n        /FS"
+            Set-Content -Path $optFile -Value $content -NoNewline
+            Write-Host "options_win.cmake patched with /FS"
+          }
+          $varFile = "cmake/variables.cmake"
+          if (Test-Path $varFile) {
+            $varContent = Get-Content $varFile -Raw
+            $varContent = $varContent -replace '"\$<\$<CONFIG:Debug>:ProgramDatabase>\$<\$<NOT:\$<CONFIG:Debug>>:Embedded>"', '"$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>$<$<CONFIG:Release,MinSizeRel>:Embedded>"'
+            Set-Content -Path $varFile -Value $varContent -NoNewline
+            Write-Host "variables.cmake patched"
+          }
+
       - name: Setup environment variables
         shell: bash
         run: |
@@ -113,6 +132,34 @@ jobs:
         run: |
           %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent
 
+      - name: Save Libraries Cache Immediately
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-x64-libs-v2-${{ env.CACHE_KEY }}
+
+      - name: Save Qt Cache Immediately
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-x64-qt-${{ env.CACHE_KEY }}
+
+      - name: Save ThirdParty Cache Immediately
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.OS }}-third-party-${{ env.CACHE_KEY }}
+
       - name: Install Inno Setup
         shell: pwsh
         run: |
@@ -121,8 +168,8 @@ jobs:
       - name: Build Ghostgram Desktop
         run: |
           cd %TBUILD%\%REPO_NAME%\Telegram
-          call configure.bat x64 -D TDESKTOP_API_ID=%TDESKTOP_API_ID% -D TDESKTOP_API_HASH=%TDESKTOP_API_HASH% -D CMAKE_CONFIGURATION_TYPES=Debug -D CMAKE_COMPILE_WARNING_AS_ERROR=OFF
-          cmake --build ..\out --config Debug --target Telegram --parallel
+          call configure.bat x64 -D TDESKTOP_API_ID=%TDESKTOP_API_ID% -D TDESKTOP_API_HASH=%TDESKTOP_API_HASH% -D CMAKE_CONFIGURATION_TYPES=Debug -D CMAKE_COMPILE_WARNING_AS_ERROR=OFF -D CMAKE_CXX_FLAGS="/FS"
+          cmake --build ..\out --config Debug --target Telegram --parallel 4
 
       - name: Package Portable & Installer
         run: |
