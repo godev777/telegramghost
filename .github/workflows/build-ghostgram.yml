@@ -90,6 +90,7 @@ jobs:
 
           git config --global user.email "ghostgram@gh0stgram.org"
           git config --global user.name "Ghostgram Builder"
+          git config --global url."https://${{ github.token }}@github.com/".insteadOf "https://github.com/"
 
       - name: Setup MSVC Command Prompt
         uses: Eden-CI/msvc-dev-cmd@master
@@ -144,8 +145,7 @@ jobs:
           echo "=== Disk space before cleanup ==="
           df -h
           rm -f *.tzst *.zst *.tar 2>/dev/null || true
-          find "$LibrariesPath" -type f '(' -name '*.obj' -o -name '*.o' -o -name '*.pdb' -o -name '*.tmp' -o -name '*.zip' -o -name '*.tar.*' -o -name '*.tgz' -o -name '*.7z' ')' -delete || true
-          find "$LibrariesPath" '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' ')' -type f ')' -o -empty ')' -delete || true
+          find "$LibrariesPath" -type f '(' -name '*.obj' -o -name '*.o' -o -name '*.tmp' -o -name '*.zip' -o -name '*.tar.*' -o -name '*.tgz' -o -name '*.7z' ')' -delete || true
           echo "=== Disk space after cleanup ==="
           df -h
 
