@@ -34,8 +34,8 @@ jobs:
           mkdir C:\TBuild\Libraries
           if not exist %GITHUB_WORKSPACE% mkdir %GITHUB_WORKSPACE%
           mklink /j %GITHUB_WORKSPACE%\TBuild C:\TBuild
-          echo TBUILD=C:\TBuild>>%GITHUB_ENV%
-          echo LibrariesPath=C:\TBuild\Libraries\win64>>%GITHUB_ENV%
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
 
       - name: Get repository name
         shell: bash
