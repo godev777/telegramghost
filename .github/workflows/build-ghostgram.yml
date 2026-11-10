@@ -31,10 +31,11 @@ jobs:
     steps:
       - name: Prepare directories
         run: |
-          mkdir %userprofile%\TBuild\Libraries
-          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
-          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
-          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
+          mkdir C:\TBuild\Libraries
+          if not exist %GITHUB_WORKSPACE% mkdir %GITHUB_WORKSPACE%
+          mklink /j %GITHUB_WORKSPACE%\TBuild C:\TBuild
+          echo TBUILD=C:\TBuild>>%GITHUB_ENV%
+          echo LibrariesPath=C:\TBuild\Libraries\win64>>%GITHUB_ENV%
 
       - name: Get repository name
         shell: bash
@@ -69,6 +70,13 @@ jobs:
             $varContent = $varContent -replace '"\$<\$<CONFIG:Debug>:ProgramDatabase>\$<\$<NOT:\$<CONFIG:Debug>>:Embedded>"', '"$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>$<$<CONFIG:Release,MinSizeRel>:Embedded>"'
             Set-Content -Path $varFile -Value $varContent -NoNewline
             Write-Host "variables.cmake patched"
+          }
+          $rcFile = "cmake/run_cmake.py"
+          if (Test-Path $rcFile) {
+            $rcContent = Get-Content $rcFile -Raw
+            $rcContent = $rcContent -replace "cmake\.append\('-T v143'\)", "cmake.append('-T v143,host=x64')"
+            Set-Content -Path $rcFile -Value $rcContent -NoNewline
+            Write-Host "run_cmake.py patched with host=x64"
           }
 
       - name: Setup environment variables
