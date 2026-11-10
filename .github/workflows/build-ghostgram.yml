@@ -192,21 +192,33 @@ jobs:
           cmake --build ..\out --config Debug --target Telegram --parallel 2
 
       - name: Package Portable & Installer
+        shell: cmd
         run: |
           cd %TBUILD%\%REPO_NAME%
           mkdir release_artifacts
+
+          dir out\Debug\*.exe
+
+          if exist out\Debug\Telegram.exe (
+            if not exist out\Debug\Ghostgram.exe (
+              copy /y out\Debug\Telegram.exe out\Debug\Ghostgram.exe
+            )
+          )
 
           echo Creating Portable Zip...
           7z a release_artifacts\Ghostgram-Portable-x64.zip .\out\Debug\Ghostgram.exe
 
           echo Creating Windows Setup Installer...
-          "C:\Program Files (x86)\Inno Setup 6\iscc.exe" /DMyBuildTarget="win64" /DMyAppVersion="7.2.9" /DMyAppVersionFull="7.2.9" /DReleasePath="out\Debug" /DSourcePath="Telegram\build\" Telegram\build\setup.iss
+          "C:\Program Files (x86)\Inno Setup 6\iscc.exe" /DMyBuildTarget=win64 /DMyAppVersion=7.2.9 /DMyAppVersionFull=7.2.9 /DReleasePath=out\Debug Telegram\build\setup.iss
 
           if exist out\Debug\ghostgramsetup-x64.7.2.9.exe (
-            move out\Debug\ghostgramsetup-x64.7.2.9.exe release_artifacts\
+            move /y out\Debug\ghostgramsetup-x64.7.2.9.exe release_artifacts\
           )
 
+          dir release_artifacts
+
       - name: Upload Build Artifacts
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: Ghostgram-v7.2.9-Windows-x64
