@@ -36,28 +36,6 @@ jobs:
           echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
           echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
 
-      - name: Expand Virtual Memory (Dynamic Pagefile)
-        shell: pwsh
-        run: |
-          Write-Host "Configuring Virtual Memory Pagefile dynamically..."
-          try {
-            $pagefile = Get-CimInstance Win32_PageFileSetting -ErrorAction SilentlyContinue
-            if ($pagefile) {
-              $pagefile | Remove-CimInstance -ErrorAction SilentlyContinue
-            }
-            $cDrive = Get-PSDrive C -ErrorAction SilentlyContinue
-            $dDrive = Get-PSDrive D -ErrorAction SilentlyContinue
-            $targetDrive = "C:"
-            if ($dDrive -and ($dDrive.Free -gt ($cDrive.Free + 5GB))) {
-              $targetDrive = "D:"
-            }
-            Write-Host "Placing Pagefile on $targetDrive (Free: $([math]::Round($((Get-PSDrive $targetDrive.Trim(':')).Free / 1GB, 2)) GB)"
-            New-CimInstance -ClassName Win32_PageFileSetting -Property @{Name = "$targetDrive\pagefile.sys"; InitialSize = 4096; MaximumSize = 16384} -ErrorAction SilentlyContinue
-            Write-Host "Dynamic Pagefile configured (4GB - 16GB) on $targetDrive!"
-          } catch {
-            Write-Host "Notice: Pagefile setup skipped: $_"
-          }
-
       - name: Get repository name
         shell: bash
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
