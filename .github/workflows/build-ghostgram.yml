@@ -39,26 +39,11 @@ jobs:
         shell: bash
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          submodules: recursive
-
-      - name: "Copy repository to C Drive"
-        shell: pwsh
+      - name: "Clone repository to C Drive"
         run: |
-          Write-Host "Copying repository from D: to C:\TBuild\${{ env.REPO_NAME }}..."
-          New-Item -ItemType Directory -Path "C:\TBuild\${{ env.REPO_NAME }}" -Force | Out-Null
-          Copy-Item -Path "$env:GITHUB_WORKSPACE\*" -Destination "C:\TBuild\${{ env.REPO_NAME }}" -Recurse -Force
-          Write-Host "Cleaning up D: drive to free up space..."
-          Remove-Item -Path "$env:GITHUB_WORKSPACE\*" -Recurse -Force -ErrorAction SilentlyContinue
-          Write-Host "Repository ready on C:\TBuild\${{ env.REPO_NAME }}!"
-          Get-PSDrive C, D | Format-Table Name, @{N="FreeGB";E={[math]::Round($_.Free / 1GB, 2)}}
-
-      - name: Sync and update submodules
-        run: |
-          cd %TBUILD%\%REPO_NAME%
-          git submodule sync --recursive
+          git clone --recursive --branch ${{ github.ref_name }} https://github.com/${{ github.repository }}.git C:\TBuild\%REPO_NAME%
+          cd C:\TBuild\%REPO_NAME%
+          git checkout ${{ github.sha }}
           git submodule update --init --recursive --force
 
       - name: Patch cmake helpers for MSVC /FS
