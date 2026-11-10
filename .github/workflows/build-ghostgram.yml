@@ -36,17 +36,24 @@ jobs:
           echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
           echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
 
-      - name: Expand Virtual Memory (32GB Pagefile)
+      - name: Expand Virtual Memory (Dynamic Pagefile)
         shell: pwsh
         run: |
-          Write-Host "Allocating 32GB Pagefile on Drive D: to prevent memory starvation..."
+          Write-Host "Configuring Virtual Memory Pagefile dynamically..."
           try {
             $pagefile = Get-CimInstance Win32_PageFileSetting -ErrorAction SilentlyContinue
             if ($pagefile) {
               $pagefile | Remove-CimInstance -ErrorAction SilentlyContinue
             }
-            New-CimInstance -ClassName Win32_PageFileSetting -Property @{Name = "D:\pagefile.sys"; InitialSize = 32768; MaximumSize = 32768} -ErrorAction SilentlyContinue
-            Write-Host "32GB Pagefile configured successfully!"
+            $cDrive = Get-PSDrive C -ErrorAction SilentlyContinue
+            $dDrive = Get-PSDrive D -ErrorAction SilentlyContinue
+            $targetDrive = "C:"
+            if ($dDrive -and ($dDrive.Free -gt ($cDrive.Free + 5GB))) {
+              $targetDrive = "D:"
+            }
+            Write-Host "Placing Pagefile on $targetDrive (Free: $([math]::Round($((Get-PSDrive $targetDrive.Trim(':')).Free / 1GB, 2)) GB)"
+            New-CimInstance -ClassName Win32_PageFileSetting -Property @{Name = "$targetDrive\pagefile.sys"; InitialSize = 4096; MaximumSize = 16384} -ErrorAction SilentlyContinue
+            Write-Host "Dynamic Pagefile configured (4GB - 16GB) on $targetDrive!"
           } catch {
             Write-Host "Notice: Pagefile setup skipped: $_"
           }
@@ -178,7 +185,12 @@ jobs:
       - name: Free up disk space
         shell: bash
         run: |
-          find "$LibrariesPath" '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' ')' -type f ')' -o -empty ')' -delete
+          echo "=== Disk space before cleanup ==="
+          df -h
+          find "$LibrariesPath" -type f '(' -name '*.obj' -o -name '*.o' -o -name '*.pdb' -o -name '*.tmp' -o -name '*.zip' -o -name '*.tar.*' -o -name '*.tgz' -o -name '*.7z' ')' -delete || true
+          find "$LibrariesPath" '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' ')' -type f ')' -o -empty ')' -delete || true
+          echo "=== Disk space after cleanup ==="
+          df -h
 
       - name: Install Inno Setup
         shell: pwsh
