@@ -29,7 +29,7 @@ jobs:
         shell: cmd
 
     steps:
-      - name: Prepare C: Drive Build Directory
+      - name: "Prepare C Drive Build Directory"
         run: |
           mkdir C:\TBuild\Libraries
           echo TBUILD=C:\TBuild>>%GITHUB_ENV%
@@ -44,7 +44,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Copy repository to C: Drive (150GB+ space)
+      - name: "Copy repository to C Drive"
         shell: pwsh
         run: |
           Write-Host "Copying repository from D: to C:\TBuild\${{ env.REPO_NAME }}..."
