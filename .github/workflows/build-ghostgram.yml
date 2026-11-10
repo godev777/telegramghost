@@ -178,7 +178,7 @@ jobs:
           7z a release_artifacts\Ghostgram-Portable-x64.zip .\out\Debug\Ghostgram.exe
 
           echo Creating Windows Setup Installer...
-          "C:\Program Files (x86)\Inno Setup 6\iscc.exe" /DMyBuildTarget=win64 /DMyAppVersion=7.2.9 /DMyAppVersionFull=7.2.9 /DReleasePath=out\Debug Telegram\build\setup.iss
+          "C:\Program Files (x86)\Inno Setup 6\iscc.exe" /DMyBuildTarget=win64 /DMyAppVersion=7.2.9 /DMyAppVersionFull=7.2.9 /DReleasePath=%CD%\out\Debug Telegram\build\setup.iss
 
           if exist out\Debug\ghostgramsetup-x64.7.2.9.exe (
             move /y out\Debug\ghostgramsetup-x64.7.2.9.exe release_artifacts\
