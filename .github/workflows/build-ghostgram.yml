@@ -29,21 +29,27 @@ jobs:
         shell: cmd
 
     steps:
-      - name: "Prepare C Drive Build Directory"
+      - name: Prepare directories
         run: |
-          mkdir C:\TBuild\Libraries
-          echo TBUILD=C:\TBuild>>%GITHUB_ENV%
-          echo LibrariesPath=C:\TBuild\Libraries\win64>>%GITHUB_ENV%
+          mkdir %userprofile%\TBuild\Libraries
+          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
 
       - name: Get repository name
         shell: bash
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
-      - name: "Clone repository to C Drive"
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+
+      - name: Sync and update submodules
         run: |
-          git clone --recursive --branch ${{ github.ref_name }} https://github.com/${{ github.repository }}.git C:\TBuild\%REPO_NAME%
-          cd C:\TBuild\%REPO_NAME%
-          git checkout ${{ github.sha }}
+          cd %TBUILD%\%REPO_NAME%
+          git submodule sync --recursive
           git submodule update --init --recursive --force
 
       - name: Patch cmake helpers for MSVC /FS
@@ -133,39 +139,12 @@ jobs:
         run: |
           %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent
 
-      - name: Save Libraries Cache Immediately
-        if: success()
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            ${{ env.LibrariesPath }}\*
-            !${{ env.LibrariesPath }}\cache_keys
-            !${{ env.LibrariesPath }}\[qQ]t[_-]*
-            ${{ env.LibrariesPath }}\cache_keys\*
-            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-x64-libs-v2-${{ env.CACHE_KEY }}
-
-      - name: Save Qt Cache Immediately
-        if: success()
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            ${{ env.LibrariesPath }}\[qQ]t[_-]*
-            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-x64-qt-${{ env.CACHE_KEY }}
-
-      - name: Save ThirdParty Cache Immediately
-        if: success()
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ env.TBUILD }}\ThirdParty
-          key: ${{ runner.OS }}-third-party-${{ env.CACHE_KEY }}
-
       - name: Free up disk space
         shell: bash
         run: |
           echo "=== Disk space before cleanup ==="
           df -h
+          rm -f *.tzst *.zst *.tar 2>/dev/null || true
           find "$LibrariesPath" -type f '(' -name '*.obj' -o -name '*.o' -o -name '*.pdb' -o -name '*.tmp' -o -name '*.zip' -o -name '*.tar.*' -o -name '*.tgz' -o -name '*.7z' ')' -delete || true
           find "$LibrariesPath" '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' ')' -type f ')' -o -empty ')' -delete || true
           echo "=== Disk space after cleanup ==="
