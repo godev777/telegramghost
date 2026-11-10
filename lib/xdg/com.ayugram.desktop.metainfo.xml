@@ -3,8 +3,8 @@
     <id>com.ayugram.desktop</id>
     <metadata_license>CC0-1.0</metadata_license>
     <project_license>GPL-3.0</project_license>
-    <name>AyuGram Desktop</name>
-    <summary>Desktop version of AyuGram - ToS breaking Telegram client</summary>
+    <name>Ghostgram Desktop</name>
+    <summary>Desktop version of Ghostgram - Telegram client with Ghost Mode</summary>
     <description>
         <p>Telegram Desktop with Ghost Mode, Anti-Recall and cool design.</p>
     </description>
@@ -12,9 +12,9 @@
         <category>Network</category>
         <category>InstantMessaging</category>
     </categories>
-    <update_contact>helpdesk_at_radolyn.com</update_contact>
-    <developer_name>Radolyn Labs</developer_name>
-    <url type="homepage">https://ayugram.one/</url>
+    <update_contact>https://t.me/gh0stgram</update_contact>
+    <developer_name>nullbe4r</developer_name>
+    <url type="homepage">https://t.me/gh0stgram</url>
     <url type="faq">https://t.me/AyuGramFAQ</url>
     <url type="bugtracker">https://t.me/ayugramchat/1262</url>
     <url type="translate">https://crowdin.com/project/ayugram</url>
